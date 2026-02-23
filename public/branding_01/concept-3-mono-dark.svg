@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Concept 3: Stellar Prism — Monochrome Dark (for light backgrounds) -->
+  <rect width="512" height="512" rx="96" fill="#292D32"/>
+  <path d="M256 100 L412 256 L256 412 L100 256 Z" fill="white"/>
+  <line x1="168" y1="168" x2="344" y2="344" stroke="#292D32" stroke-width="40" stroke-linecap="round"/>
+  <line x1="344" y1="168" x2="168" y2="344" stroke="#292D32" stroke-width="40" stroke-linecap="round"/>
+  <path d="M256 192 L320 256 L256 320 L192 256 Z" fill="white" stroke="#292D32" stroke-width="6"/>
+</svg>

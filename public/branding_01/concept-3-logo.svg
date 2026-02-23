@@ -1,0 +1,11 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Concept 3: Stellar Prism — Diamond with X facets -->
+  <rect width="512" height="512" rx="96" fill="#2C4BFD"/>
+  <!-- Diamond shape (rotated square) -->
+  <path d="M256 100 L412 256 L256 412 L100 256 Z" fill="white"/>
+  <!-- X facet lines carved through the diamond -->
+  <line x1="168" y1="168" x2="344" y2="344" stroke="#2C4BFD" stroke-width="40" stroke-linecap="round"/>
+  <line x1="344" y1="168" x2="168" y2="344" stroke="#2C4BFD" stroke-width="40" stroke-linecap="round"/>
+  <!-- Inner diamond accent (creates prism depth) -->
+  <path d="M256 192 L320 256 L256 320 L192 256 Z" fill="white" stroke="#2C4BFD" stroke-width="6"/>
+</svg>

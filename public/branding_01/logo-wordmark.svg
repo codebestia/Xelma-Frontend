@@ -1,0 +1,12 @@
+<svg width="400" height="100" viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Xelma Production Wordmark — Momentum X logo + "Xelma" text -->
+  <g>
+    <!-- Icon mark -->
+    <rect width="84" height="84" rx="16" fill="#2C4BFD" x="8" y="8"/>
+    <line x1="26" y1="63" x2="58" y2="31" stroke="white" stroke-width="8.5" stroke-linecap="round"/>
+    <line x1="58" y1="63" x2="26" y2="31" stroke="white" stroke-width="8.5" stroke-linecap="round"/>
+    <path d="M48 31 L58 31 L58 41" stroke="white" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="112" y="66" font-family="'DM Sans', sans-serif" font-size="52" font-weight="700" fill="#292D32" letter-spacing="0.5">Xelma</text>
+</svg>
