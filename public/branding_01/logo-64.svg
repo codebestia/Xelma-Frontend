@@ -1,0 +1,7 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Xelma Logo — Momentum X — 64×64 Favicon-optimized (thicker strokes for clarity) -->
+  <rect width="64" height="64" rx="12" fill="#2C4BFD"/>
+  <line x1="18" y1="46" x2="46" y2="18" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <line x1="46" y1="46" x2="18" y2="18" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <path d="M38 18 L46 18 L46 26" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

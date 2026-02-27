@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useStellarAddressValidation } from '../hooks/useStellarAddressValidation';
 import { type Network } from '../utils/validateStellarAddress';
 import { Loader2, CheckCircle2, XCircle, Wallet, AlertCircle } from 'lucide-react';
@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 
 const Connect = () => {
   const [address, setAddress] = useState('');
-  const [network, setNetwork] = useState<Network>('TESTNET');
   const [selectedNetwork, setSelectedNetwork] = useState<Network>('TESTNET');
   const inputRef = useRef<HTMLInputElement>(null);
 

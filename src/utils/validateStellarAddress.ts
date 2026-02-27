@@ -1,11 +1,13 @@
-import { StrKey } from '@stellar/stellar-sdk';
-import { Server } from '@stellar/stellar-sdk';
+import { StrKey, Horizon } from "@stellar/stellar-sdk";
 
-export type Network = 'MAINNET' | 'TESTNET';
+export type Network = "MAINNET" | "TESTNET";
 
 export type ValidationResult =
   | { valid: true; network: Network }
-  | { valid: false; error: 'invalid-format' | 'wrong-network' | 'not-found' | 'network-error' };
+  | {
+      valid: false;
+      error: "invalid-format" | "wrong-network" | "not-found" | "network-error";
+    };
 
 /**
  * Validates a Stellar address format using StrKey.isValidEd25519PublicKey
@@ -13,7 +15,7 @@ export type ValidationResult =
  * @returns true if the address format is valid (56 chars, Base32), false otherwise
  */
 export function validateStellarAddressFormat(address: string): boolean {
-  if (!address || typeof address !== 'string') {
+  if (!address || typeof address !== "string") {
     return false;
   }
 
@@ -36,7 +38,7 @@ export function validateStellarAddressFormat(address: string): boolean {
  * @returns true if the prefix matches, false otherwise
  */
 export function checkNetworkPrefix(address: string, network: Network): boolean {
-  if (!address || typeof address !== 'string') {
+  if (!address || typeof address !== "string") {
     return false;
   }
 
@@ -46,12 +48,12 @@ export function checkNetworkPrefix(address: string, network: Network): boolean {
   // Mainnet addresses start with 'G'
   // Testnet addresses start with 'T' (though testnet can also use 'G', we check the actual network)
   // For validation purposes, we check if it's a valid address and then verify on the network
-  if (network === 'MAINNET') {
-    return firstChar === 'G';
-  } else if (network === 'TESTNET') {
+  if (network === "MAINNET") {
+    return firstChar === "G";
+  } else if (network === "TESTNET") {
     // Testnet can have addresses starting with 'G' or 'T'
     // We'll verify existence on the network instead of just prefix
-    return firstChar === 'G' || firstChar === 'T';
+    return firstChar === "G" || firstChar === "T";
   }
 
   return false;
@@ -65,9 +67,9 @@ export function checkNetworkPrefix(address: string, network: Network): boolean {
  */
 export async function checkAccountExists(
   address: string,
-  network: Network
+  network: Network,
 ): Promise<boolean> {
-  if (!address || typeof address !== 'string') {
+  if (!address || typeof address !== "string") {
     return false;
   }
 
@@ -76,20 +78,21 @@ export async function checkAccountExists(
   try {
     // Create server instance for the appropriate network
     const serverUrl =
-      network === 'MAINNET'
-        ? 'https://horizon.stellar.org'
-        : 'https://horizon-testnet.stellar.org';
+      network === "MAINNET"
+        ? "https://horizon.stellar.org"
+        : "https://horizon-testnet.stellar.org";
 
-    const server = new Server(serverUrl);
+    const server = new Horizon.Server(serverUrl);
 
     // Attempt to load the account
     // This will throw an error if the account doesn't exist (404)
     await server.loadAccount(cleaned);
 
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { status?: number } };
     // If it's a 404, the account doesn't exist
-    if (error?.response?.status === 404) {
+    if (err?.response?.status === 404) {
       return false;
     }
 
@@ -106,30 +109,30 @@ export async function checkAccountExists(
  */
 export async function validateStellarAddress(
   address: string,
-  network: Network
+  network: Network,
 ): Promise<ValidationResult> {
   // Step 1: Validate format
   if (!validateStellarAddressFormat(address)) {
-    return { valid: false, error: 'invalid-format' };
+    return { valid: false, error: "invalid-format" };
   }
 
   const cleaned = address.trim().toUpperCase();
 
   // Step 2: Check network prefix (basic check)
   // For mainnet, must start with 'G'
-  if (network === 'MAINNET' && cleaned.charAt(0) !== 'G') {
-    return { valid: false, error: 'wrong-network' };
+  if (network === "MAINNET" && cleaned.charAt(0) !== "G") {
+    return { valid: false, error: "wrong-network" };
   }
 
   // Step 3: Check account existence on the network
   try {
     const exists = await checkAccountExists(cleaned, network);
     if (!exists) {
-      return { valid: false, error: 'not-found' };
+      return { valid: false, error: "not-found" };
     }
-  } catch (error) {
+  } catch {
     // Network error or other error during account check
-    return { valid: false, error: 'network-error' };
+    return { valid: false, error: "network-error" };
   }
 
   // All checks passed
