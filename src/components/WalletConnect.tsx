@@ -4,6 +4,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 
+const focusRing =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
+
 const WalletConnect = () => {
   const {
     publicKey,
@@ -28,10 +31,10 @@ const WalletConnect = () => {
 
   if (publicKey && status === 'connected') {
     return (
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {networkMismatch && (
           <div
-            className="hidden md:flex items-center text-red-500 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded"
+            className="hidden md:flex items-center text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded"
             role="status"
           >
             <AlertCircle className="w-4 h-4 mr-1 shrink-0" aria-hidden />
@@ -40,31 +43,44 @@ const WalletConnect = () => {
         )}
 
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-[#BEC7FE] dark:border-gray-700 rounded-lg shadow-sm">
-          <span className="text-sm font-semibold text-[#4D4D4D] dark:text-gray-300">
-            {balance ?? '—'}
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            {balance ? (
+              <>
+                <span className="sr-only">Balance: </span>
+                {balance}
+              </>
+            ) : (
+              <>
+                <span className="sr-only">Balance unavailable</span>
+                <span aria-hidden>—</span>
+              </>
+            )}
           </span>
         </div>
 
-        <div className="flex items-center gap-2 p-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pr-3 relative group">
+        <div className="flex items-center gap-1 sm:gap-2 p-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pr-2 sm:pr-3">
           <div
-            className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs"
+            className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs shrink-0"
             aria-hidden
           >
             <Wallet className="w-4 h-4" />
           </div>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{shortAddress}</span>
+          <span className="text-sm font-medium text-gray-800 dark:text-gray-200 tabular-nums max-w-[7rem] sm:max-w-none truncate">
+            {shortAddress}
+          </span>
           {isAuthenticated && (
-            <ShieldCheck className="w-4 h-4 text-green-500" aria-label="Authenticated with backend" />
+            <ShieldCheck className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-label="Signed in to server" />
           )}
-
           <button
             type="button"
             onClick={disconnect}
-            className="absolute top-full right-0 mt-2 w-full min-w-[120px] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg py-2 px-3 flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50"
+            className={clsx(
+              'shrink-0 p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20',
+              focusRing
+            )}
             aria-label="Disconnect wallet"
           >
-            <LogOut className="w-4 h-4 shrink-0" aria-hidden />
-            <span className="text-sm">Disconnect</span>
+            <LogOut className="w-4 h-4" aria-hidden />
           </button>
         </div>
       </div>
@@ -74,7 +90,10 @@ const WalletConnect = () => {
   if (status === 'error' && errorMessage) {
     return (
       <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 max-w-[220px] sm:max-w-xs text-right sm:text-left">
+        <p
+          className="text-xs sm:text-sm text-red-700 dark:text-red-300 max-w-[220px] sm:max-w-xs text-right sm:text-left"
+          role="alert"
+        >
           {errorMessage}
         </p>
         <div className="flex gap-2">
@@ -84,7 +103,10 @@ const WalletConnect = () => {
               clearError();
               void connect();
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-[#2C4BFD] text-white hover:bg-[#1a3bf0]"
+            className={clsx(
+              'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-[#2C4BFD] text-white hover:bg-[#1a3bf0]',
+              focusRing
+            )}
           >
             <RefreshCw className="w-4 h-4" aria-hidden />
             Retry
@@ -102,7 +124,8 @@ const WalletConnect = () => {
       className={clsx(
         'flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-200',
         'bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white shadow-lg shadow-blue-500/20',
-        'disabled:opacity-70 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2C4BFD]'
+        'disabled:opacity-70 disabled:cursor-not-allowed',
+        focusRing
       )}
       aria-busy={status === 'connecting' || status === 'checking'}
     >
