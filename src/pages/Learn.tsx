@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { educationApi } from "../lib/api-client";
+import { normalizeApiError } from "../lib/api";
 import type { Guide, Tip } from "../types/education";
 import { GuideCard } from "../components/education/GuideCard";
 import { TipCard } from "../components/education/TipCard";
@@ -25,7 +26,8 @@ const LearnPage = () => {
             if (guidesResult.status === 'fulfilled') {
                 setGuides(guidesResult.value);
             } else {
-                console.error("Failed to fetch guides:", guidesResult.reason);
+                const err = normalizeApiError(guidesResult.reason, "Failed to fetch guides");
+                console.debug("Failed to fetch guides", { message: err.message, status: err.status, code: err.code });
                 // We only set a general error if both or critical one fails, 
                 // but requirement says "one failure does not block the other"
             }
@@ -33,7 +35,8 @@ const LearnPage = () => {
             if (tipResult.status === 'fulfilled') {
                 setTip(tipResult.value);
             } else {
-                console.error("Failed to fetch tip:", tipResult.reason);
+                const err = normalizeApiError(tipResult.reason, "Failed to fetch tip");
+                console.debug("Failed to fetch tip", { message: err.message, status: err.status, code: err.code });
             }
 
             // If both failed, show error
@@ -41,7 +44,8 @@ const LearnPage = () => {
                 setError("Unable to load education content. Please check your connection.");
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "An unexpected error occurred");
+            const normalized = normalizeApiError(err, "An unexpected error occurred");
+            setError(normalized.message);
         } finally {
             setLoading(false);
         }
