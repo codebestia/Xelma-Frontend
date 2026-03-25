@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { NotificationItem, NotificationEventPayload } from '../types/notification';
 import { notificationsApi } from '../lib/api-client';
+import { normalizeApiError } from '../lib/api';
 
 interface NotificationsState {
   unread: number;
@@ -29,8 +30,8 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
       const res = await notificationsApi.getUnreadCount();
       set({ unread: res.unread });
     } catch (rawErr) {
-      const msg = rawErr instanceof Error ? rawErr.message : 'Failed to load unread count';
-      set({ errorCount: msg });
+      const err = normalizeApiError(rawErr, 'Failed to load unread count');
+      set({ errorCount: err.message });
     } finally {
       set({ loadingCount: false });
     }
@@ -49,8 +50,8 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
         return { list: merged };
       });
     } catch (rawErr) {
-      const msg = rawErr instanceof Error ? rawErr.message : 'Failed to load notifications';
-      set({ errorList: msg });
+      const err = normalizeApiError(rawErr, 'Failed to load notifications');
+      set({ errorList: err.message });
     } finally {
       set({ loadingList: false });
     }

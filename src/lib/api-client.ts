@@ -47,20 +47,29 @@ type UserPredictionsResponse =
         data?: UserPrediction[];
     };
 
-function normalizeUserPredictions(response: UserPredictionsResponse): UserPrediction[] {
+function normalizeArrayResponse<T>(
+    response: T[] | Record<string, unknown>,
+    keys: string[]
+): T[] {
     if (Array.isArray(response)) {
         return response;
     }
 
-    if (Array.isArray(response.predictions)) {
-        return response.predictions;
-    }
-
-    if (Array.isArray(response.data)) {
-        return response.data;
+    for (const key of keys) {
+        const value = response[key];
+        if (Array.isArray(value)) {
+            return value as T[];
+        }
     }
 
     return [];
+}
+
+function normalizeUserPredictions(response: UserPredictionsResponse): UserPrediction[] {
+    return normalizeArrayResponse<UserPrediction>(
+        response as UserPrediction[] | Record<string, unknown>,
+        ['predictions', 'data']
+    );
 }
 
 export const predictionsApi = {
@@ -151,10 +160,10 @@ export interface LeaderboardEntry {
 type LeaderboardResponse = LeaderboardEntry[] | { data?: LeaderboardEntry[]; leaderboard?: LeaderboardEntry[] };
 
 function normalizeLeaderboard(response: LeaderboardResponse): LeaderboardEntry[] {
-    if (Array.isArray(response)) return response;
-    if (Array.isArray(response.data)) return response.data;
-    if (Array.isArray(response.leaderboard)) return response.leaderboard;
-    return [];
+    return normalizeArrayResponse<LeaderboardEntry>(
+        response as LeaderboardEntry[] | Record<string, unknown>,
+        ['data', 'leaderboard']
+    );
 }
 
 export const leaderboardApi = {
