@@ -12,13 +12,22 @@ interface RoundEventEnvelope {
   round?: unknown;
 }
 
+interface SSEConnectionState {
+  status: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+  error: string | null;
+  reconnectAttempts: number;
+  lastConnected: Date | null;
+}
+
 interface RoundStore {
   activeRound: Round | null;
   isRoundActive: boolean;
   isLoading: boolean;
   error: string | null;
+  sseConnection: SSEConnectionState;
   fetchActiveRound: () => Promise<void>;
   subscribeToRoundEvents: () => () => void;
+  reconnectSSE: () => void;
 }
 
 function parseJson(value: string): unknown {
@@ -66,11 +75,69 @@ function getEventType(payload: unknown): string | null {
   return typeof eventType === 'string' ? eventType : null;
 }
 
-export const useRoundStore = create<RoundStore>((set) => ({
+// SSE Reconnection Manager
+class SSEReconnectionManager {
+  private reconnectTimeouts = new Map<string, NodeJS.Timeout>();
+  private maxReconnectAttempts = 5;
+  private baseDelay = 1000;
+  private maxDelay = 30000;
+
+  calculateDelay(attempt: number): number {
+    const delay = Math.min(this.baseDelay * Math.pow(2, attempt), this.maxDelay);
+    // Add jitter to prevent thundering herd
+    return delay + Math.random() * 1000;
+  }
+
+  scheduleReconnect(
+    key: string, 
+    attempt: number, 
+    callback: () => void,
+    onScheduled?: (delay: number) => void
+  ): void {
+    if (attempt >= this.maxReconnectAttempts) {
+      return;
+    }
+
+    const delay = this.calculateDelay(attempt);
+    onScheduled?.(delay);
+
+    const timeout = setTimeout(() => {
+      this.reconnectTimeouts.delete(key);
+      callback();
+    }, delay);
+
+    this.reconnectTimeouts.set(key, timeout);
+  }
+
+  cancelReconnect(key: string): void {
+    const timeout = this.reconnectTimeouts.get(key);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.reconnectTimeouts.delete(key);
+    }
+  }
+
+  clear(): void {
+    for (const timeout of this.reconnectTimeouts.values()) {
+      clearTimeout(timeout);
+    }
+    this.reconnectTimeouts.clear();
+  }
+}
+
+const sseReconnectionManager = new SSEReconnectionManager();
+
+export const useRoundStore = create<RoundStore>((set, get) => ({
   activeRound: null,
   isRoundActive: false,
   isLoading: false,
   error: null,
+  sseConnection: {
+    status: 'disconnected',
+    error: null,
+    reconnectAttempts: 0,
+    lastConnected: null,
+  },
 
   fetchActiveRound: async () => {
     set({ isLoading: true, error: null });
@@ -89,59 +156,142 @@ export const useRoundStore = create<RoundStore>((set) => ({
     }
   },
 
+  reconnectSSE: () => {
+    const state = get();
+    sseReconnectionManager.cancelReconnect('rounds');
+    
+    // Reset connection state and attempt reconnection
+    set({
+      sseConnection: {
+        ...state.sseConnection,
+        status: 'connecting',
+        reconnectAttempts: 0,
+      }
+    });
+
+    // Re-subscribe will create a new connection
+    state.subscribeToRoundEvents();
+  },
+
   subscribeToRoundEvents: () => {
-    const stream = new EventSource(`${API_BASE}/api/rounds/events`);
+    const createConnection = (): EventSource => {
+      set((state) => ({
+        sseConnection: {
+          ...state.sseConnection,
+          status: 'connecting',
+        }
+      }));
 
-    const handleRoundStarted = (payload: unknown) => {
-      const startedRound = getEventRound(payload);
-      set({
-        activeRound: startedRound,
-        isRoundActive: true,
-        error: null,
-      });
+      const stream = new EventSource(`${API_BASE}/api/rounds/events`);
+
+      const handleRoundStarted = (payload: unknown) => {
+        const startedRound = getEventRound(payload);
+        set({
+          activeRound: startedRound,
+          isRoundActive: true,
+          error: null,
+        });
+      };
+
+      const handleRoundResolved = (payload: unknown) => {
+        const resolvedRound = getEventRound(payload);
+        set({
+          activeRound: resolvedRound,
+          isRoundActive: false,
+          error: null,
+        });
+      };
+
+      const handleNamedRoundStarted = (event: MessageEvent) => {
+        handleRoundStarted(parseJson(event.data));
+      };
+
+      const handleNamedRoundResolved = (event: MessageEvent) => {
+        handleRoundResolved(parseJson(event.data));
+      };
+
+      const handleGenericMessage = (event: MessageEvent) => {
+        const payload = parseJson(event.data);
+        const eventType = getEventType(payload);
+
+        if (eventType === 'round:started') {
+          handleRoundStarted(payload);
+        }
+
+        if (eventType === 'round:resolved') {
+          handleRoundResolved(payload);
+        }
+      };
+
+      stream.addEventListener('round:started', handleNamedRoundStarted);
+      stream.addEventListener('round:resolved', handleNamedRoundResolved);
+      stream.onmessage = handleGenericMessage;
+
+      stream.onopen = () => {
+        set((state) => ({
+          sseConnection: {
+            status: 'connected',
+            error: null,
+            reconnectAttempts: 0,
+            lastConnected: new Date(),
+          }
+        }));
+      };
+
+      stream.onerror = () => {
+        const currentState = get();
+        const newAttempts = currentState.sseConnection.reconnectAttempts + 1;
+        
+        set((state) => ({
+          sseConnection: {
+            ...state.sseConnection,
+            status: 'reconnecting',
+            error: 'Round event stream disconnected',
+            reconnectAttempts: newAttempts,
+          },
+          error: 'Round event stream disconnected', // Also set main error for backward compatibility
+        }));
+
+        // Schedule reconnection with exponential backoff
+        sseReconnectionManager.scheduleReconnect(
+          'rounds',
+          newAttempts,
+          () => {
+            // Close current stream and create new one
+            stream.close();
+            const newStream = createConnection();
+            // Update the cleanup function to use the new stream
+            cleanup = () => {
+              sseReconnectionManager.cancelReconnect('rounds');
+              newStream.removeEventListener('round:started', handleNamedRoundStarted);
+              newStream.removeEventListener('round:resolved', handleNamedRoundResolved);
+              newStream.close();
+            };
+          },
+          (delay) => {
+            console.log(`SSE reconnecting in ${delay}ms (attempt ${newAttempts})`);
+          }
+        );
+      };
+
+      return stream;
     };
 
-    const handleRoundResolved = (payload: unknown) => {
-      const resolvedRound = getEventRound(payload);
-      set({
-        activeRound: resolvedRound,
-        isRoundActive: false,
-        error: null,
-      });
-    };
-
-    const handleNamedRoundStarted = (event: MessageEvent) => {
-      handleRoundStarted(parseJson(event.data));
-    };
-
-    const handleNamedRoundResolved = (event: MessageEvent) => {
-      handleRoundResolved(parseJson(event.data));
-    };
-
-    const handleGenericMessage = (event: MessageEvent) => {
-      const payload = parseJson(event.data);
-      const eventType = getEventType(payload);
-
-      if (eventType === 'round:started') {
-        handleRoundStarted(payload);
-      }
-
-      if (eventType === 'round:resolved') {
-        handleRoundResolved(payload);
-      }
-    };
-
-    stream.addEventListener('round:started', handleNamedRoundStarted);
-    stream.addEventListener('round:resolved', handleNamedRoundResolved);
-    stream.onmessage = handleGenericMessage;
-    stream.onerror = () => {
-      set({ error: 'Round event stream disconnected' });
-    };
-
-    return () => {
-      stream.removeEventListener('round:started', handleNamedRoundStarted);
-      stream.removeEventListener('round:resolved', handleNamedRoundResolved);
+    const stream = createConnection();
+    
+    let cleanup = () => {
+      sseReconnectionManager.cancelReconnect('rounds');
+      stream.removeEventListener('round:started', () => {});
+      stream.removeEventListener('round:resolved', () => {});
       stream.close();
+      set((state) => ({
+        sseConnection: {
+          ...state.sseConnection,
+          status: 'disconnected',
+        }
+      }));
     };
+
+    return cleanup;
   },
 }));

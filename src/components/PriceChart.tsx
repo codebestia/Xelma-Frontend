@@ -10,6 +10,8 @@ import {
 import { priceApi, type PricePoint } from "../lib/api-client";
 import { socketService } from "../lib/socket";
 import { LoadingState, ErrorState } from "./ui/StatusStates";
+import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import { ConnectionStatus } from "./ConnectionStatus";
 
 interface PriceChartProps {
   height?: number;
@@ -241,7 +243,9 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
   }, [loadInitialPrices]);
 
   useEffect(() => {
+    // Connect to socket only once when component mounts
     socketService.connect();
+    
     const unsubscribe = socketService.onPriceUpdate((payload: unknown) => {
       const incomingPoints = extractPricePoints(payload);
       if (incomingPoints.length === 0) return;
@@ -253,8 +257,11 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
 
     return () => {
       unsubscribe();
+      // Note: Don't disconnect socket here as other components may be using it
     };
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once
+
+  const { isConnected, isDisconnected } = useConnectionStatus();
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -269,9 +276,16 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
           </div>
           <div>
             <span className="font-bold text-[#292D32] dark:text-white text-lg">XLM/USD</span>
-            <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">LIVE</span>
+            <span className={`ml-2 text-xs ${isConnected ? 'text-green-500' : 'text-gray-400'} dark:text-gray-500`}>
+              {isConnected ? 'LIVE' : 'OFFLINE'}
+            </span>
           </div>
         </div>
+        
+        {/* Connection status for disconnected state */}
+        {isDisconnected && (
+          <ConnectionStatus className="mr-4" />
+        )}
         <p className={`text-sm font-semibold tabular-nums ${isPositive ? "text-green-500" : "text-red-500"}`}>
           {isPositive ? "+" : ""}{priceChangePercent.toFixed(2)}%
         </p>
