@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { socketService } from "../lib/socket";
+import { useConnectionStatus } from "../hooks/useConnectionStatus";
 
 interface Message {
   id: string;
@@ -112,6 +113,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [onlineCount] = useState(16);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isConnected } = useConnectionStatus();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -143,6 +145,9 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
 
   // Listen for incoming chat:message events via socket
   useEffect(() => {
+    // Ensure socket is connected
+    socketService.connect();
+    
     const unsubscribe = socketService.onChatMessage((data: ApiMessage) => {
       setMessages((prev) => {
         // De-duplicate: server echoes our own sends back through chat:message
@@ -151,13 +156,16 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
       });
     });
 
+    // Join chat channel
+    socketService.joinChat("general"); // TODO: Use dynamic channel ID
+
     return () => {
       unsubscribe();
     };
   }, []);
 
   const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || !isConnected) return;
 
     // Emit chat:send to the server instead of pushing to local state.
     // The server will broadcast chat:message back to all clients in the
@@ -279,17 +287,28 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
 
         {/* Input Area */}
         <div className="p-4 bg-white dark:bg-[#1f2937] border-t border-gray-100 dark:border-gray-800">
+          {!isConnected && (
+            <div className="mb-2 text-xs text-red-500 dark:text-red-400 text-center">
+              Chat is offline - messages cannot be sent
+            </div>
+          )}
           <div className="flex items-center gap-2 p-2 bg-[#FAFAFA] dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl">
             <input
               type="text"
-              className="flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-[#292D32] dark:text-gray-200 placeholder-[#9B9B9B]"
-              placeholder="Type a message..."
+              className={`flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-[#292D32] dark:text-gray-200 placeholder-[#9B9B9B] ${
+                !isConnected ? 'opacity-50' : ''
+              }`}
+              placeholder={isConnected ? "Type a message..." : "Chat offline..."}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
+              disabled={!isConnected}
             />
             <button
-              className="flex items-center justify-center w-9 h-9 p-0 bg-[#2C4BFD] border-none rounded-lg cursor-pointer transition-all duration-200 hover:opacity-90 hover:scale-105"
+              className={`flex items-center justify-center w-9 h-9 p-0 bg-[#2C4BFD] border-none rounded-lg cursor-pointer transition-all duration-200 hover:opacity-90 hover:scale-105 ${
+                !isConnected ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              disabled={!isConnected}
               onClick={handleSendMessage}
               aria-label="Send message"
             >
