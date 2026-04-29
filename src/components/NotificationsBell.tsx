@@ -11,6 +11,7 @@ const NotificationsBell: React.FC = () => {
   const addNotification = useNotificationsStore((s) => s.addNotification);
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const { isConnected } = useConnectionStatus();
 
   useEffect(() => {
@@ -40,6 +41,7 @@ const NotificationsBell: React.FC = () => {
       if (e.key === "Escape") {
         e.preventDefault();
         setOpen(false);
+        triggerRef.current?.focus();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -53,6 +55,7 @@ const NotificationsBell: React.FC = () => {
     <div className="relative">
       <button
         type="button"
+        ref={triggerRef}
         className={`p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 ${
           !isConnected ? 'opacity-50' : ''
         }`}
@@ -75,7 +78,13 @@ const NotificationsBell: React.FC = () => {
         )}
       </button>
       {open && (
-        <NotificationsPanel id={panelId} onClose={() => setOpen(false)} />
+        <NotificationsPanel
+          id={panelId}
+          onClose={() => {
+            setOpen(false);
+            triggerRef.current?.focus();
+          }}
+        />
       )}
     </div>
   );

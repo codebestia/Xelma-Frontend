@@ -59,7 +59,13 @@ const mockNotifications: NotificationItem[] = [
   },
 ];
 
-const mockStore = {
+const mockStore: {
+  list: NotificationItem[];
+  loadingList: boolean;
+  errorList: string | null;
+  markAsRead: ReturnType<typeof vi.fn>;
+  fetchList: ReturnType<typeof vi.fn>;
+} = {
   list: [],
   loadingList: false,
   errorList: null,
@@ -96,6 +102,7 @@ describe('NotificationsPanel', () => {
       expect(panel).toHaveAttribute('id', 'notifications-panel');
       expect(panel).toHaveAttribute('aria-modal', 'false');
       expect(panel).toHaveAttribute('aria-labelledby', 'notifications-panel-title');
+      expect(panel).toHaveAttribute('aria-describedby', 'notifications-panel-description');
 
       const title = screen.getByRole('heading', { name: 'Notifications' });
       expect(title).toHaveAttribute('id', 'notifications-panel-title');
@@ -116,6 +123,35 @@ describe('NotificationsPanel', () => {
       fireEvent.click(closeButton);
 
       expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('focuses the close button when opened and closes on Escape', async () => {
+      const mockOnClose = vi.fn();
+      render(<NotificationsPanel {...defaultProps} onClose={mockOnClose} />);
+
+      const closeButton = screen.getByRole('button', { name: 'Close notifications' });
+      await waitFor(() => expect(closeButton).toHaveFocus());
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps Tab focus inside the panel', async () => {
+      mockStore.list = [mockNotifications[0]];
+      render(<NotificationsPanel {...defaultProps} />);
+
+      const closeButton = screen.getByRole('button', { name: 'Close notifications' });
+      const markAsReadButton = screen.getByRole('button', { name: /mark notification/i });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+
+      markAsReadButton.focus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(closeButton).toHaveFocus();
+
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(markAsReadButton).toHaveFocus();
     });
   });
 

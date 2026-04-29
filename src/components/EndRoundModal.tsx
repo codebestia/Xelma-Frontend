@@ -1,4 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
+import { useEffect, useRef } from 'react';
 
 interface EndRoundModalProps {
   isOpen: boolean;
@@ -12,6 +13,21 @@ interface EndRoundModalProps {
 
 export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModalProps) {
   const { isWin, amount, tip } = result;
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      previouslyFocusedRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+      return;
+    }
+
+    const previouslyFocused = previouslyFocusedRef.current;
+    if (previouslyFocused?.isConnected) {
+      window.setTimeout(() => previouslyFocused.focus(), 0);
+    }
+  }, [isOpen]);
 
   return (
     <Dialog.Root

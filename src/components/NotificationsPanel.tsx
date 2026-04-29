@@ -1,13 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNotificationsStore } from '../store/useNotificationsStore';
 import { Clock, Check } from './icons';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
   id,
   onClose,
 }) => {
   const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const list = useNotificationsStore((s) => s.list);
   const loadingList = useNotificationsStore((s) => s.loadingList);
   const errorList = useNotificationsStore((s) => s.errorList);
@@ -22,12 +26,22 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
     void fetchList();
   };
 
+  useFocusTrap(panelRef, {
+    active: true,
+    initialFocusRef: closeButtonRef,
+    onEscape: onClose,
+    restoreFocus: false,
+  });
+
   return (
     <div
       id={id}
+      ref={panelRef}
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      tabIndex={-1}
       className="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg z-50"
     >
       <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
@@ -36,6 +50,7 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
         </h2>
         <button
           type="button"
+          ref={closeButtonRef}
           onClick={onClose}
           aria-label="Close notifications"
           className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
@@ -43,6 +58,9 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
           Close
         </button>
       </div>
+      <p id={descriptionId} className="sr-only">
+        Review notifications and mark unread items as read.
+      </p>
 
       <div className="max-h-80 overflow-auto min-h-[200px]">
         {loadingList && (

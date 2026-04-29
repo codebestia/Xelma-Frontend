@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useProfileStore } from "../store/useProfileStore";
 import type { ProfileSettingsValues } from "../lib/profileApi";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 type Props = {
   onClose: () => void;
@@ -14,13 +15,6 @@ const DRAFT_KEY = "profile_settings_draft_v1";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
-}
-
-function onEnterOrSpace(e: React.KeyboardEvent, fn: () => void) {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    fn();
-  }
 }
 
 function isValidTwitterUrl(value: string) {
@@ -77,7 +71,7 @@ function ProfileSettingsForm({
   onClose: () => void;
   resolved: ProfileSettingsValues;
 }) {
-  const { saveProfile } = useProfileStore();
+  const saveProfile = useProfileStore((s) => s.saveProfile);
 
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(resolved.avatarUrl);
   const [name, setName] = useState(resolved.name);
@@ -95,20 +89,11 @@ function ProfileSettingsForm({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    nameRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
+  useFocusTrap(modalRef, {
+    active: true,
+    initialFocusRef: nameRef,
+    onEscape: onClose,
+  });
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -206,6 +191,8 @@ function ProfileSettingsForm({
           role="dialog"
           aria-modal="true"
           aria-labelledby="profile-settings-title"
+          aria-describedby="profile-settings-description"
+          tabIndex={-1}
           className={cx(
             "relative w-full max-w-3xl",
             "rounded-2xl bg-white dark:bg-gray-900",
@@ -235,6 +222,9 @@ function ProfileSettingsForm({
           </div>
 
           <div className="px-6 sm:px-8 py-6 overflow-y-auto max-h-[calc(85vh-72px)]">
+            <p id="profile-settings-description" className="sr-only">
+              Update your profile name, avatar, bio, links, and streamer mode.
+            </p>
             <div className="flex gap-6 items-center">
               <div className="h-24 w-24 rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
                 {avatarPreviewUrl ? (
@@ -288,8 +278,10 @@ function ProfileSettingsForm({
                 )}
                 placeholder="Your display name"
                 autoComplete="nickname"
+                aria-invalid={Boolean(errors.name)}
+                aria-describedby={errors.name ? "profile-display-name-error" : undefined}
               />
-              {errors.name && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{errors.name}</p>}
+              {errors.name && <p id="profile-display-name-error" className="mt-2 text-xs text-red-600 dark:text-red-400">{errors.name}</p>}
             </div>
 
             <div className="mt-7">
@@ -312,14 +304,16 @@ function ProfileSettingsForm({
                   errors.bio && "border-red-500/60 focus-visible:ring-red-500/40"
                 )}
                 placeholder="Short description (max 100 chars)"
+                aria-invalid={Boolean(errors.bio)}
+                aria-describedby={errors.bio ? "profile-bio-error" : "profile-bio-hint"}
               />
               <div className="mt-2 flex items-center justify-between">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Short description (max 100 chars)</p>
+                <p id="profile-bio-hint" className="text-xs text-gray-500 dark:text-gray-400">Short description (max 100 chars)</p>
                 <p className={cx("text-xs", bio.length > BIO_MAX ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400")}>
                   {bio.length}/{BIO_MAX}
                 </p>
               </div>
-              {errors.bio && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{errors.bio}</p>}
+              {errors.bio && <p id="profile-bio-error" className="mt-2 text-xs text-red-600 dark:text-red-400">{errors.bio}</p>}
             </div>
 
             <div className="mt-7">
@@ -341,10 +335,12 @@ function ProfileSettingsForm({
                   className="w-full bg-transparent text-sm text-gray-800 placeholder:text-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD]/40 rounded-md dark:text-gray-100 dark:placeholder:text-gray-500"
                   placeholder="https://x.com/your_handle"
                   autoComplete="url"
+                  aria-invalid={Boolean(errors.twitterLink)}
+                  aria-describedby={errors.twitterLink ? "profile-twitter-link-error" : undefined}
                 />
               </div>
 
-              {errors.twitterLink && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{errors.twitterLink}</p>}
+              {errors.twitterLink && <p id="profile-twitter-link-error" className="mt-2 text-xs text-red-600 dark:text-red-400">{errors.twitterLink}</p>}
             </div>
 
             <div className="mt-7 rounded-2xl bg-gray-50 border border-gray-200 px-5 py-4 dark:bg-gray-800 dark:border-gray-700">
@@ -356,13 +352,12 @@ function ProfileSettingsForm({
                   </p>
                 </div>
 
-                <div
+                <button
+                  type="button"
                   role="switch"
-                  tabIndex={0}
                   aria-checked={streamerMode}
                   aria-label="Streamer mode"
                   onClick={() => setStreamerMode((v) => !v)}
-                  onKeyDown={(e) => onEnterOrSpace(e, () => setStreamerMode((v) => !v))}
                   className={cx(
                     "relative inline-flex h-7 w-12 items-center rounded-full cursor-pointer transition shrink-0",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800",
@@ -375,7 +370,7 @@ function ProfileSettingsForm({
                       streamerMode ? "left-6" : "left-1"
                     )}
                   />
-                </div>
+                </button>
               </div>
             </div>
 
@@ -405,7 +400,9 @@ function ProfileSettingsForm({
 }
 
 export default function ProfileSettingsModal({ onClose, initialValues }: Props) {
-  const { profile, isLoading, loadProfile } = useProfileStore();
+  const profile = useProfileStore((s) => s.profile);
+  const isLoading = useProfileStore((s) => s.isLoading);
+  const loadProfile = useProfileStore((s) => s.loadProfile);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
