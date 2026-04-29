@@ -7,6 +7,8 @@ import { useRoundStore } from "../store/useRoundStore";
 import PredictionHistory from "../components/PredictionHistory";
 import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore";
 import { predictionsApi, ApiError } from "../lib/api-client";
+import { ConnectionStatus } from "../components/ConnectionStatus";
+import { useConnectionStatus } from "../hooks/useConnectionStatus";
 
 interface DashboardProps {
   showNewsRibbon?: boolean;
@@ -14,6 +16,7 @@ interface DashboardProps {
 
 const Dashboard = ({ showNewsRibbon = true }: DashboardProps) => {
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
+  const sseConnection = useRoundStore((state) => state.sseConnection);
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const isWalletConnecting = useWalletStore(
     (s) => s.status === "connecting" || s.status === "checking"
@@ -22,6 +25,7 @@ const Dashboard = ({ showNewsRibbon = true }: DashboardProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const { isConnected: isSocketConnected } = useConnectionStatus();
 
   useEffect(() => {
     const { fetchActiveRound, subscribeToRoundEvents } = useRoundStore.getState();
@@ -84,6 +88,20 @@ const Dashboard = ({ showNewsRibbon = true }: DashboardProps) => {
       <ChatSidebar showNewsRibbon={showNewsRibbon} />
 
       <div className="flex-1 ml-0 md:ml-80 transition-[margin] duration-300 ease-in-out p-4 lg:p-6">
+        {/* Connection Status Banner */}
+        {(!isSocketConnected || (sseConnection && sseConnection.status !== 'connected')) && (
+          <div className="mb-4">
+            <ConnectionStatus />
+            {sseConnection && sseConnection.status !== 'connected' && sseConnection.error && (
+              <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  Round updates: {sseConnection.error}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Message display */}
         {message && (
           <div

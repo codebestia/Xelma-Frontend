@@ -6,6 +6,7 @@ import NotificationsBell from "./NotificationsBell";
 import Logo from "../assets/logo.svg";
 import ProfileSettingsModal from "./ProfileSettingsModal";
 import { useProfileStore } from "../store/useProfileStore";
+import { ConnectionIndicator } from "./ConnectionStatus";
 
 interface Routes {
   name: string;
@@ -109,6 +110,7 @@ const Header = () => {
               </svg>
             )}
           </button>
+          <ConnectionIndicator className="mr-2" />
           <NotificationsBell />
           <WalletConnect />
         </div>
